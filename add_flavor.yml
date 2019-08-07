@@ -1,13 +1,57 @@
 heat_template_version: newton
-
 description: Template to create a medium Instance
+
+parameters:
+ flavor_name:
+   type: string
+   description: flavor name
+   default:
+
+ flavor_vcpu:
+   type: string
+   description: flavour number of vcpus
+   default: 1
+
+ flavor_ram:
+   type: string
+   description: flavour memory ram in MB
+   default: 1024
+
+ flavor_disk:
+   type: string
+   description: Disk size in GB
+   default: 10
+
+ public:
+   type: boolean
+   description: If true is a global flavor, if false restricted to a tenant
+   default: True
+
+ flavor_ephe:
+   type: string
+   description: Ephemeral disk size in GB
+   default: 1
+
+ flavor_swap:
+   type: string
+   description: Swap disk size in MB
+   default: 0
+
+ tenant_id:
+   type: string
+   description: tenant to associate the flavor
+   default: admin
 
 resources:
   my_flavor:
     type: OS::Nova::Flavor
     properties:
-      ephemeral: 1
-      is_public: true
-      name: medium.m1
-      ram: 2048
-      vcpus: 2
+      name: {get_param: flavor_name}
+      disk: {get_param: flavor_disk}
+      is_public: {get_param: public}
+      ram: {get_param: flavor_ram}
+      vcpus: {get_param: flavor_vcpu}
+      ephemeral: {get_param: flavor_ephe}
+      swap: {get_param: flavor_swap}
+      tenants: [{get_param: tenant_id}]
+
