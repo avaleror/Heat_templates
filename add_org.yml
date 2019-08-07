@@ -1,0 +1,202 @@
+--- 
+description: "creation d un template"
+heat_template_version: newton
+parameters: 
+  environment: 
+    description: "organisation ID"
+    type: string
+  flavor_disk: 
+    Default: 0
+    Description: "Size of local disk in GB. The \"0\" size is a special case that uses the native base image size as the size of the ephemeral root volume."
+    Type: Number
+  flavor_ephemeral: 
+    Default: 0
+    Description: "Size of a secondary ephemeral data disk in GB."
+    Type: Number
+  flavor_name: 
+    Description: "Name of the flavor."
+    Type: String
+  flavor_ram: 
+    Description: "Memory in MB for the flavor."
+    Type: Number
+  flavor_swap: 
+    Default: 0
+    Description: "Swap space in MB."
+    Type: Number
+  flavor_vcpus: 
+    Description: "Number of VCPUs for the flavor."
+    Type: Number
+  is_flavor_public: 
+    AllowedValues: 
+      - "True"
+      - "true"
+      - "False"
+      - "false"
+    Default: true
+    Description: "Scope of flavor accessibility. Public or private. Default value is True, means public, shared across all projects."
+    Type: Boolean
+  tenant_id: 
+    description: "organisation ID"
+    type: string
+  tenant_name: 
+    description: "organisation name"
+    type: string
+resources: 
+  ADMIN_group: 
+    properties: 
+      description: "Admin group"
+      domain: default
+      name: 
+        str_replace: 
+          params: 
+            ? "%env%"
+            : 
+              get_param: environment
+            ? "%tenant_name%"
+            : 
+              get_param: tenant_name
+            tenantID%: 
+              get_param: tenant_id
+          template: ADMIN_TENANT_%tenant_name%-%env%-tenantID%
+      roles: 
+        - 
+          project: 
+            get_resource: organisation_tenant
+          role: admin
+    type: "OS::Keystone::Group"
+  ADMIN_user: 
+    properties: 
+      roles: 
+        - 
+          project: 
+            get_resource: organisation_tenant
+          role: admin
+      user: admin
+    type: "OS::Keystone::UserRoleAssignment"
+  Extrenal_net: 
+    properties: 
+      name: Extrenal
+      tenant_id: 
+        get_resource: organisation_tenant
+    type: "OS::Neutron::Net"
+  Extrenal_subnet: 
+    properties: 
+      cidr: 10.0.0.0/24
+      dns_nameservers: 
+        - "55.223.10.1"
+      enable_dhcp: true
+      gateway_ip: "10.0.0.1"
+      name: Extrenal-subnet
+      network_id: 
+        get_resource: Extrenal_net
+      tenant_id: 
+        get_resource: organisation_tenant
+    type: "OS::Neutron::Subnet"
+  Internal_net: 
+    properties: 
+      name: Internal
+      tenant_id: 
+        get_resource: organisation_tenant
+    type: "OS::Neutron::Net"
+  Internal_subnet: 
+    properties: 
+      cidr: 192.168.10.0/24
+      name: Internal-subnet
+      network_id: 
+        get_resource: Internal_net
+      tenant_id: 
+        get_resource: organisation_tenant
+    type: "OS::Neutron::Subnet"
+  MEMBER_group: 
+    properties: 
+      description: "Member group"
+      domain: default
+      name: 
+        str_replace: 
+          params: 
+            ? "%env%"
+            : 
+              get_param: environment
+            ? "%tenant_name%"
+            : 
+              get_param: tenant_name
+            tenantID%: 
+              get_param: tenant_id
+          template: MEMBER_TENANT_%tenant_name%-%env%-tenantID%
+      roles: 
+        - 
+          project: 
+            get_resource: organisation_tenant
+          role: _member_
+    type: "OS::Keystone::Group"
+  cinder_quota: 
+    properties: 
+      gigabytes: 10240
+      project: 
+        get_resource: organisation_tenant
+      snapshots: 5
+      volumes: 10
+    type: "OS::Cinder::Quota"
+  flavor: 
+    properties: 
+      disk: 
+        get_param: flavor_disk
+      ephemeral: 
+        get_param: flavor_ephemeral
+      is_public: 
+        get_param: is_flavor_public
+      name: 
+        get_param: flavor_name
+      ram: 
+        get_param: flavor_ram
+      swap: 
+        get_param: flavor_swap
+      tenants: 
+        - 
+          get_param: tenant_id
+      vcpus: 
+        get_param: flavor_vcpus
+    type: "OS::Nova::Flavor"
+  organisation_Router: 
+    properties: 
+      external_gateway_info: 
+        network: net-external
+      name: Router
+      value_specs: 
+        tenant_id: 
+          get_resource: organisation_tenant
+    type: "OS::Neutron::Router"
+  organisation_router_Extrenal_interfaces: 
+    properties: 
+      router_id: 
+        get_resource: organisation_Router
+      subnet_id: 
+        get_resource: Extrenal_subnet
+    type: "OS::Neutron::RouterInterface"
+  organisation_tenant: 
+    properties: 
+      description: 
+        get_param: tenant_name
+      domain: default
+      name: 
+        str_replace: 
+          params: 
+            ? "%env%"
+            : 
+              get_param: environment
+            tenant%: 
+              get_param: tenant_name
+            tenantID%: 
+              get_param: tenant_id
+          template: tenant%-%env%-tenantID%
+    type: "OS::Keystone::Project"
+  quota-nova-csh: 
+    properties: 
+      cores: 10
+      fixed_ips: 5
+      floating_ips: 5
+      instances: 5
+      project: 
+        get_resource: organisation_tenant
+      ram: 10240
+    type: "OS::Nova::Quota"
