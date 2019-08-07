@@ -1,0 +1,13 @@
+heat_template_version: newton
+
+description: Template to create a medium Instance
+
+resources:
+  my_flavor:
+    type: OS::Nova::Flavor
+    properties:
+      ephemeral: 1
+      is_public: true
+      name: medium.m1
+      ram: 2048
+      vcpus: 2
